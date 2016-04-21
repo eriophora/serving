@@ -48,10 +48,15 @@ def export():
     # Please refer to Tensorflow inception model for details.
 
     # Note there is no preprocessing; this is all done client-side now.
-    images = tf.placeholder(tf.float, shape=(None,
-                                             FLAGS.image_size,
-                                             FLAGS.image_size,
-                                             3))
+    # The images will be read in an N x (image_size ** 2 * n_channels)
+    flat_image_size = 3 * FLAGS.image_size ** 2
+    images = tf.placeholder(tf.float, shape=(None, flat_image_size))
+
+    # reshape the images appropriately
+    reshaped_images = tf.reshape(images, (-1,
+                                          FLAGS.image_size,
+                                          FLAGS.image_size,
+                                          3))
 
     # Run inference.
     logits, _ = inception_model.inference(images, NUM_CLASSES + 1)
