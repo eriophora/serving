@@ -77,6 +77,10 @@ using tensorflow::serving::ClassificationSignature;
 const int kNumTopClasses = 5;
 
 namespace {
+const int kImageSize = 299;
+const int kNumChannels = 3;
+const int kImageDataSize = kImageSize * kImageSize * kNumChannels;
+
 class InceptionServiceImpl;
 
 // Class encompassing the state and logic needed to serve a request.
@@ -209,9 +213,9 @@ InceptionServiceImpl::InceptionServiceImpl(
   // specific graph structure and usage.
   tensorflow::serving::StreamingBatchScheduler<Task>::Options scheduler_options;
   scheduler_options.thread_pool_name = "inception_service_batch_threads";
-  // TODO(27776734): Current exported model supports only batch_size=1
-  // See inception_export.py for details.
-  scheduler_options.max_batch_size = 1;
+  // Based on experience this batch size is too large for most GPUs, it will
+  // eventually crash on (for instance) the NVIDIA GRID GPUs on Amazon's AWS.
+  scheduler_options.max_batch_size = 32;
   tensorflow::serving::BatchSchedulerRetrier<Task>::Options retry_options;
   // Retain the default retry options.
   TF_CHECK_OK(tensorflow::serving::CreateRetryingStreamingBatchScheduler<Task>(
@@ -283,10 +287,15 @@ void InceptionServiceImpl::DoClassifyInBatch(
   }
 
   // Transform protobuf input to inference input tensor.
-  tensorflow::Tensor batched_input(tensorflow::DT_STRING, {batch_size});
+  tensorflow::Tensor input(tensorflow::DT_FLOAT, {batch_size, kImageDataSize});
+  // This appears necessary; it's not clear why.
+  auto dst = input.flat_outer_dims<float>().data();
+  // Assemble the batch.
   for (int i = 0; i < batch_size; ++i) {
-    batched_input.vec<string>()(i) =
-        batch->mutable_task(i)->calldata->request().jpeg_encoded();
+    std::copy_n(
+        batch->mutable_task(i)->calldata->request().image_data().begin(),
+        kImageDataSize, dst);
+    dst += kImageDataSize;
   }
 
   // Run classification.
