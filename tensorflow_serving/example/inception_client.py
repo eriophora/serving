@@ -40,6 +40,9 @@ from PIL import Image
 from tensorflow_serving.example import inception_inference_pb2
 
 
+tf.app.flags.DEFINE_integer('concurrency', 1,
+                            'maximum number of concurrent inference requests')
+# TODO: Add support for concurrency requests.
 tf.app.flags.DEFINE_string('server', 'localhost:9000',
                            'inception_inference service host:port')
 tf.app.flags.DEFINE_string('image', '', 'path to image in JPEG format')
