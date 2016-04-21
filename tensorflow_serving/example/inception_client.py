@@ -46,6 +46,7 @@ tf.app.flags.DEFINE_integer('concurrency', 1,
 tf.app.flags.DEFINE_string('server', 'localhost:9000',
                            'inception_inference service host:port')
 tf.app.flags.DEFINE_string('image', '', 'path to image in JPEG format')
+tf.app.flags.DEFINE_string('image_list_file', '', 'path to a text file containing a list of images')
 tf.app.flags.DEFINE_integer('image_size', 299,
               """Needs to provide same value as in training.""")
 tf.app.flags.DEFINE_string('prep_method', 'resize',
@@ -76,7 +77,9 @@ def _prep_image(img, w=FLAGS.image_size, h=FLAGS.image_size):
   batching of Inception. The original preprocessing operation for Inception is
   to central crop by 87.5%, and then simply resize to the appropriate
   dimensions. Here, there are additional options for users who have retrained
-  Inception using alternative preprocessing methods.
+  Inception using alternative preprocessing methods. The source image cropping
+  of 87.5% is presumed completed; this is intended to be a more general prep 
+  function.
 
   Args:
     img: A PIL image.
@@ -213,23 +216,19 @@ def _pad_to_asp(img, asp):
   return nimg
 
 
-def main(_):
-  host, port = FLAGS.server.split(':')
-  channel = implementations.insecure_channel(host, int(port))
-  stub = inception_inference_pb2.beta_create_InceptionService_stub(channel)
-  # Create label->synset mapping
-  synsets = []
-  with open(SYNSET_FILE) as f:
-    synsets = f.read().splitlines()
-  # Create synset->metadata mapping
-  texts = {}
-  with open(METADATA_FILE) as f:
-    for line in f.read().splitlines():
-      parts = line.split('\t')
-      assert len(parts) == 2
-      texts[parts[0]] = parts[1]
+def prep_inception_from_file(image_file):
+  '''
+  Preprocesses an image from a fully-qualified file, in same
+  manager as the batchless inception server (including the 
+  87.5% source crop) and wraps _prep_image to make the image
+  the correct size.
+  '''
   # Load the image.
-  image = Image.open(FLAGS.image)
+  try:
+    image = Image.open(FLAGS.image)
+  except IOError, e:
+    warn('Could not open %s with PIL. It will be skipped!' % e.filename)
+    return None
 
   # In the original implementation of Inception export, the images are
   # centrally cropped by 87.5 percent before undergoing adjustments to
@@ -255,17 +254,111 @@ def main(_):
   # as (-1, 1) in the original documentation).
   image -= 0.5
   image *= 2.0
+  return image
 
-  # Create the request. See inception_inference.proto for gRPC request/
-  # response details. Instead of using an encoded jpeg, we send the
-  # data as a row-major byte encoding using numpy's tobytes method.
-  request.image_data = image.tobytes()
-  result = stub.Classify(request, 10.0)  # 10 secs timeout
-  for i in range(NUM_CLASSES):
-    index = result.classes[i]
-    score = result.scores[i]
-    print '%f : %s' % (score, texts[synsets[index - 1]])
 
+def do_inference(hostport, concurrency, listfile):
+  '''
+  Performs inference over multiple images given a list of images
+  as a text file, with one image per line. The image path cannot
+  be relative and must be fully-qualified. Prints the results of
+  the top N classes.
+
+  Args:
+    hostport: Host:port address of the mnist_inference service.
+    concurrency: Maximum number of concurrent requests.
+    listfile: The path to a text file containing the fully-qualified
+      path to a single image per line.
+
+  Returns:
+    None.
+  '''
+  imagefns = []
+  with open(listfile, 'r') as f:
+    imagefns = f.read().splitlines()
+  host, port = hostport.split(':')
+  channel = implementations.insecure_channel(host, int(port))
+  stub = inception_inference_pb2.beta_create_InceptionService_stub(channel)
+  cv = threading.Condition()
+  # this will store the ouput Inception. We require it to map filenames
+  # to their labels in the case of batching.
+  inference_results = []
+  def done(result_future, filename):
+    '''
+    Callback for result_future, modifies inference_results to hold the 
+    output of Inception.
+    '''
+    with cv:
+      exception = result_future.exception()
+      if exception:
+        result['error'] += 1
+        print exception
+      result['done'] += 1
+      result['active'] -= 1
+      indices = [result.classes[i] for i in range(NUM_CLASSES)]
+      scores = [result.scores[i] for i in range(NUM_CLASSES)]
+      inf_res = [filename, indices, scores]
+      inference_results.append(inf_res)
+      cv.notify()
+
+  for imagefn in range(imagefns):
+    image_array = prep_inception_from_file(imagefn)
+    if image_array is None:
+      continue
+    request.image_data = image_array.tobytes()
+    with cv:
+      while result['active'] == concurrency:
+        cv.wait()
+      result['active'] += 1
+    result_future = stub.Classify.future(request, 10.0)  # 10 second timeout
+    result_future.add_done_callback(
+        lambda result_future, filename=imagefn: done(result_future))  # pylint: disable=cell-var-from-loop
+  with cv:
+    while result['done'] != num_tests:
+      cv.wait()
+  return inference_results
+
+
+def main(_):
+  host, port = FLAGS.server.split(':')
+  channel = implementations.insecure_channel(host, int(port))
+  stub = inception_inference_pb2.beta_create_InceptionService_stub(channel)
+  # Create label->synset mapping
+  synsets = []
+  with open(SYNSET_FILE) as f:
+    synsets = f.read().splitlines()
+  # Create synset->metadata mapping
+  texts = {}
+  with open(METADATA_FILE) as f:
+    for line in f.read().splitlines():
+      parts = line.split('\t')
+      assert len(parts) == 2
+      texts[parts[0]] = parts[1]
+  if FLAGS.image:
+    # Load and preprocess the image.
+    image = prep_inception_from_file(FLAGS.image)
+    if image is None:
+      return
+    # The image is now a numpy nd array with the appropraite size for 
+    # Inception, with each element constrained to the domain [-1, 1).
+
+    # Create the request. See inception_inference.proto for gRPC request/
+    # response details. Instead of using an encoded jpeg, we send the
+    # data as a row-major byte encoding using numpy's tobytes method.
+    request.image_data = image.tobytes()
+    result = stub.Classify(request, 10.0)  # 10 secs timeout
+    for i in range(NUM_CLASSES):
+      index = result.classes[i]
+      score = result.scores[i]
+      print '%f : %s' % (score, texts[synsets[index - 1]])
+  elif FLAGS.image_list_file:
+    inference_results = do_inference(FLAGS.server, 
+                                     FLAGS.concurrency, 
+                                     FLAGS.image_list_file)
+    for filename, indices, scores in inference_results:
+      print '%s Inference:'
+      for index, score in zip(indices, scores):
+        print '\t%f : %s' % (score, texts[synsets[index - 1]])
 
 if __name__ == '__main__':
   tf.app.run()
