@@ -6,7 +6,7 @@ package tensorflow.serving;
 
 message InceptionRequest {
   // JPEG encoded stream of the image to be classified.
-  bytes jpeg_encoded = 1;
+  repeated float image_data = 1 [packed = true];
 };
 
 message InceptionResponse {
