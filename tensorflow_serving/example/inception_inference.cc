@@ -288,9 +288,9 @@ void InceptionServiceImpl::DoClassifyInBatch(
 
   // Transform protobuf input to inference input tensor.
   tensorflow::Tensor input(tensorflow::DT_FLOAT, {batch_size, kImageDataSize});
-  // This appears necessary; it's not clear why.
   auto dst = input.flat_outer_dims<float>().data();
-  // Assemble the batch.
+  // Assemble the batch into a tensor, copying it from the batch data to 
+  // the input tensor at location dst repeatedly for each item in the batch 
   for (int i = 0; i < batch_size; ++i) {
     std::copy_n(
         batch->mutable_task(i)->calldata->request().image_data().begin(),
@@ -302,7 +302,7 @@ void InceptionServiceImpl::DoClassifyInBatch(
   tensorflow::Tensor batched_classes;
   tensorflow::Tensor batched_scores;
   const tensorflow::Status run_status =
-      RunClassification(signature, batched_input, bundle->session.get(),
+      RunClassification(signature, input, bundle->session.get(),
                         &batched_classes, &batched_scores);
   if (!run_status.ok()) {
     complete_with_error(StatusCode::INTERNAL, run_status.error_message());
