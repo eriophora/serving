@@ -15,7 +15,14 @@
 
 #!/usr/grte/v4/bin/python2.7
 
-"""Send JPEG image to inception_inference server for classification.
+"""
+Send JPEG image to inception_inference server for classification. This
+client can handle images with very different aspect ratios from the
+original training material by using alternative preprocessing methods to
+simple resizing, such as padding (symmetrically adding 0s to the edges
+of the image to bring it to a square shape) or centrally cropping. Both
+of these methods prevent heavy distortion from being introduced into the
+image, but also carry other disadvantages (see options).
 """
 
 import os
@@ -25,7 +32,7 @@ import threading
 # This is a placeholder for a Google-internal import.
 
 from grpc.beta import implementations
-import numpy
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.platform.logging import warn
 from PIL import Image
@@ -40,17 +47,17 @@ tf.app.flags.DEFINE_integer('image_size', 299,
               """Needs to provide same value as in training.""")
 tf.app.flags.DEFINE_string('prep_method', 'resize',
                '''Defines the method used to get images to image_size:
-                - resize: Resize the image (distortion, whole image, no blank 
+                - resize: Resize the image (distortion, whole image, no blank
                   space)
-                - crop: Center-crop the image to image_size (no distortion, 
+                - crop: Center-crop the image to image_size (no distortion,
                   partial image, no blank space)
-                - padresize: Pads the image to the appropriate aspect ratio 
+                - padresize: Pads the image to the appropriate aspect ratio
                 then resizes (no distortion, whole image, blank space)''')
 
 FLAGS = tf.app.flags.FLAGS
 
 if FLAGS.prep_method not in ['resize', 'crop', 'padresize']:
-  warn('Preprocessing method "%s" is unknown. Defaulting to resize.', 
+  warn('Preprocessing method "%s" is unknown. Defaulting to resize.',
        FLAGS.prep_method)
   FLAGS.prep_method = 'resize'
 
@@ -60,10 +67,18 @@ SYNSET_FILE = os.path.join(WORKING_DIR, 'imagenet_lsvrc_2015_synsets.txt')
 METADATA_FILE = os.path.join(WORKING_DIR, 'imagenet_metadata.txt')
 
 
-def prep_image(img, w=FLAGS.image_size, h=FLAGS.image_size):
+def _prep_image(img, w=FLAGS.image_size, h=FLAGS.image_size):
   '''
   Preprocesses the requested image to the desired size, permitting server-side
-  batching of Inception.
+  batching of Inception. The original preprocessing operation for Inception is
+  to central crop by 87.5%, and then simply resize to the appropriate
+  dimensions. Here, there are additional options for users who have retrained
+  Inception using alternative preprocessing methods.
+
+  Args:
+    img: A PIL image.
+    w: The desired width.
+    h: The desired height.
   '''
   if FLAGS.prep_method == 'resize':
     return _resize_to(img, w=w, h=h)
@@ -85,7 +100,7 @@ def _resize_to(img, w=None, h=None):
   Resizes the image to a disired width and height. If either is undefined,
   it resizes such that the defined argument is satisfied and preserves aspect
   ratio. If both are defined, resizes to satisfy both arguments without
-  preserving aspect ratio.  
+  preserving aspect ratio.
 
   Args:
     img: A PIL image.
@@ -107,11 +122,15 @@ def _resize_to(img, w=None, h=None):
 
 def _resize_to_min(img, w=None, h=None):
   '''
-  Resizes an image so that its size in both dimensions is greater than or 
-  equal to the provided arguments. If either argument is None, that dimension 
+  Resizes an image so that its size in both dimensions is greater than or
+  equal to the provided arguments. If either argument is None, that dimension
   is ignored. If the image is larger in both dimensions, then the image is
   shrunk. In either case, the aspect ratio is preserved and image size is
-  minimized.
+  minimized. If the target of interest is in the center of the frame, but the
+  image has an unusual aspect ratio, center cropping is likely the best option.
+  If the image has an unusual aspect ratio but is irregularly framed, padding
+  the image will prevent distortion while also including the entirety of the
+  original image.
 
   Args:
     img: A PIL image.
@@ -206,36 +225,43 @@ def main(_):
       parts = line.split('\t')
       assert len(parts) == 2
       texts[parts[0]] = parts[1]
-  # Send request
-  with open(FLAGS.image, 'rb') as f:
-    # See inception_inference.proto for gRPC request/response details.
-    data = f.read()
-    request = inception_inference_pb2.InceptionRequest()
-    request.jpeg_encoded = data
-    result = stub.Classify(request, 10.0)  # 10 secs timeout
-    for i in range(NUM_CLASSES):
-      index = result.classes[i]
-      score = result.scores[i]
-      print '%f : %s' % (score, texts[synsets[index - 1]])
+  # Load the image.
+  image = Image.open(FLAGS.image)
 
+  # In the original implementation of Inception export, the images are
+  # centrally cropped by 87.5 percent before undergoing adjustments to
+  # bring them into the correct size, which we replicate here.
+  ow, oh = image.size  # obtain the original width and height
+  nw = int(ow * 0.875)  # compute the new width
+  nh = int(oh * 0.875)  # compute the new height
+  image = _center_crop_to(image, w=nw, h=nh)  # center crop to 87.5%
 
-def checkerboard(w=256, h=256, c0=0, c1=255, blocksize=16):
-  '''
-  Generates a checkerboard pattern, for testing the preprocessing.
+  # preprocess the image to bring it to a square with edge length
+  # FLAGS.image_size
+  image = prep_image(data)
 
-  Returns the pattern as a PIL image.
-  '''
-  block = numpy.tile([1], (blocksize, blocksize))
-  block1 = block * c0
-  block2 = block * c1
-  sb1 = numpy.hstack([block1, block2])
-  sb2 = numpy.hstack([block2, block1])
-  sb = numpy.vstack([sb1, sb2])
-  d = blocksize * 2
-  rep_w = numpy.ceil(float(w) / d)
-  rep_h = numpy.ceil(float(h) / d)
-  board = numpy.tile(sb, (rep_h, rep_w))[:h, :w]
-  return Image.fromarray(board.astype(float))
+  # Convert to a numpy array
+  image = numpy.array(image).astype(float32)
+
+  # Perform additional preprocessing to mimic the inputs to inception.
+  # Scale image pixels. all pixels now reside in [0, 1), as in the
+  # tensor representation following tf.image.decode_jpeg.
+  image /= 256.
+
+  # Scale the image to the domain [-1, 1) (referred to incorrectly
+  # as (-1, 1) in the original documentation).
+  image -= 0.5
+  image *= 2.0
+
+  # Create the request. See inception_inference.proto for gRPC request/
+  # response details. Instead of using an encoded jpeg, we send the
+  # data as a row-major byte encoding using numpy's tobytes method.
+  request.image_data = image.tobytes()
+  result = stub.Classify(request, 10.0)  # 10 secs timeout
+  for i in range(NUM_CLASSES):
+    index = result.classes[i]
+    score = result.scores[i]
+    print '%f : %s' % (score, texts[synsets[index - 1]])
 
 
 if __name__ == '__main__':
