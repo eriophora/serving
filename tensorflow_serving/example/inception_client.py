@@ -32,7 +32,7 @@ import threading
 # This is a placeholder for a Google-internal import.
 
 from grpc.beta import implementations
-import numpy as np
+import numpy
 import tensorflow as tf
 from tensorflow.python.platform.logging import warn
 from PIL import Image
