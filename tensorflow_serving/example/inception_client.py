@@ -157,6 +157,8 @@ def _read_image(imagefn):
     pil_image.load()
   except Exception, e:
     warn('Problem loading %s StringIO with PIL, error: %s' % (imagefn, e.message))
+    return None
+  return pil_image
 
 
 def _resize_to_min(img, w=None, h=None):
@@ -340,6 +342,7 @@ def do_inference(hostport, concurrency, listfile):
     image_array = prep_inception_from_file(imagefn)
     if image_array is None:
       print 'Could not read image %s' % imagefn
+      num_images -= 1
       continue
     else:
       print 'Read image %s with size %s' % (imagefn, str(image_array.shape))
