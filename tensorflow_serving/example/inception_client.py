@@ -182,9 +182,9 @@ def _center_crop_to(img, w, h):
   ow, oh = img.size
   if ow < w or oh < h:
     return img
-  upper = (h - oh) / 2
+  upper = (oh - h) / 2
   lower = upper + h
-  left = (w - ow) / 2
+  left = (ow - w) / 2
   right = left + w
   return img.crop((left, upper, right, lower))
 
@@ -240,7 +240,7 @@ def prep_inception_from_file(image_file):
 
   # preprocess the image to bring it to a square with edge length
   # FLAGS.image_size
-  image = prep_image(data)
+  image = _prep_image(image)
 
   # Convert to a numpy array
   image = numpy.array(image).astype(float32)
