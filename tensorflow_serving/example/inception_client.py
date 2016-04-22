@@ -247,7 +247,7 @@ def prep_inception_from_file(image_file):
   image = _prep_image(image)
 
   # Convert to a numpy array
-  image = numpy.array(image).astype(float32)
+  image = numpy.array(image).astype(numpy.float32)
 
   # Perform additional preprocessing to mimic the inputs to inception.
   # Scale image pixels. all pixels now reside in [0, 1), as in the
