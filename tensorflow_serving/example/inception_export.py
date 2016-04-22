@@ -50,16 +50,16 @@ def export():
     # Note there is no preprocessing; this is all done client-side now.
     # The images will be read in an N x (image_size ** 2 * n_channels)
     flat_image_size = 3 * FLAGS.image_size ** 2
-    images = tf.placeholder(tf.float64, shape=(None, flat_image_size))
-    images = tf.to_float(images)
+    input_data = tf.placeholder(tf.float64, shape=(None, flat_image_size))
+    images = tf.to_float(input_data)
     # reshape the images appropriately
-    reshaped_images = tf.reshape(images, (-1,
-                                          FLAGS.image_size,
-                                          FLAGS.image_size,
-                                          3))
-    print('Inputs have shape',reshaped_images.get_shape())
+    images = tf.reshape(images, (-1,
+                                 FLAGS.image_size,
+                                 FLAGS.image_size,
+                                 3))
+    print('Inputs have shape',images.get_shape())
     # Run inference.
-    logits, _ = inception_model.inference(reshaped_images, NUM_CLASSES + 1)
+    logits, _ = inception_model.inference(images, NUM_CLASSES + 1)
 
     # Transform output to topK result.
     values, indices = tf.nn.top_k(logits, NUM_TOP_CLASSES)
@@ -87,7 +87,7 @@ def export():
       # Export inference model.
       model_exporter = exporter.Exporter(saver)
       signature = exporter.classification_signature(
-          input_tensor=reshaped_images, 
+          input_tensor=input_data, 
           classes_tensor=indices, 
           scores_tensor=values)
       model_exporter.init(default_graph_signature=signature)

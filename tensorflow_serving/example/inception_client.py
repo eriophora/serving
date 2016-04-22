@@ -29,7 +29,9 @@ import os
 import sys
 import threading
 
-# PIL must be imported before tensorflow, annoyingly.
+# PIL must be imported before tensorflow. It's totally unclear why
+# and probably has some kind of byzantine and bizarre reason (likely
+# because the Pillow version vs. the one tensorflow uses are different).
 from PIL import Image
 
 # This is a placeholder for a Google-internal import.
@@ -39,11 +41,6 @@ import tensorflow as tf
 from tensorflow.python.platform.logging import warn
 
 from tensorflow_serving.example import inception_inference_pb2
-
-# There appear to be a number of problems with reading the image in
-# with PIL, so we're going to try reading it in with StringIO ahead
-# of time and instantiating it that way.
-from cStringIO import StringIO
 
 tf.app.flags.DEFINE_integer('concurrency', 1,
                             'maximum number of concurrent inference requests')
@@ -133,9 +130,8 @@ def _resize_to(img, w=None, h=None):
 def _read_image(imagefn):
   '''
   This function reads in an image as a raw file and then converts
-  it to a PIL image. It's annoying, but it avoids the IOErrors that
-  PIL spits out when running in the client (even though it works fine
-  if used on its own).
+  it to a PIL image. Note that, critically, PIL must be imported before
+  tensorflow for black magic reasons.
   
   Args:
     imagefn: A fully-qualified path to an image as a string.
@@ -143,18 +139,13 @@ def _read_image(imagefn):
   Returns:
     The PIL image requested.
   '''
-  with open(imagefn, 'r') as f:
-    try:
-      image_raw = StringIO(f.read())
-    except Exception, e:
-      print 'Could not read raw image (%s): %s' % (imagenf, e.message)
-      return None
   try:
-    pil_image = Image.open(image_raw)
+    pil_image = Image.open(imagfn)
   except Exception, e:
     warn('Problem opening %s StringIO with PIL, error: %s' % (imagefn, e.message))
     return None
   try:
+    # ensure that the image file is closed.
     pil_image.load()
   except Exception, e:
     warn('Problem loading %s StringIO with PIL, error: %s' % (imagefn, e.message))
