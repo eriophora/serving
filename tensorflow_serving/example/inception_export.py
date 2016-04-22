@@ -59,7 +59,7 @@ def export():
                                           3))
 
     # Run inference.
-    logits, _ = inception_model.inference(images, NUM_CLASSES + 1)
+    logits, _ = inception_model.inference(reshaped_images, NUM_CLASSES + 1)
 
     # Transform output to topK result.
     values, indices = tf.nn.top_k(logits, NUM_TOP_CLASSES)
