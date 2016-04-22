@@ -213,7 +213,7 @@ InceptionServiceImpl::InceptionServiceImpl(
   // specific graph structure and usage.
   tensorflow::serving::StreamingBatchScheduler<Task>::Options scheduler_options;
   scheduler_options.thread_pool_name = "inception_service_batch_threads";
-  scheduler_options.batch_timeout_micros = 5000 * 1000;  // five seconds
+  // scheduler_options.batch_timeout_micros = 5000 * 1000;  // five seconds
   tensorflow::serving::BatchSchedulerRetrier<Task>::Options retry_options;
   // Retain the default retry options.
   TF_CHECK_OK(tensorflow::serving::CreateRetryingStreamingBatchScheduler<Task>(
