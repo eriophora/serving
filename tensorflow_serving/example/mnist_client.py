@@ -69,6 +69,7 @@ def do_inference(hostport, work_dir, concurrency, num_tests):
   cv = threading.Condition()
   result = {'active': 0, 'error': 0, 'done': 0}
   def done(result_future, label):
+    print 'Result future recieved'
     with cv:
       exception = result_future.exception()
       if exception:
@@ -96,6 +97,8 @@ def do_inference(hostport, work_dir, concurrency, num_tests):
     result_future = stub.Classify.future(request, 5.0)  # 5 seconds
     result_future.add_done_callback(
         lambda result_future, l=label[0]: done(result_future, l))  # pylint: disable=cell-var-from-loop
+    # TODO: remove testing
+    print 'Submitted job: %s' % (imagefn)
   with cv:
     while result['done'] != num_tests:
       cv.wait()
