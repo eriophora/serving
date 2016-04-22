@@ -273,7 +273,7 @@ def prep_inception_from_file(image_file):
   # Perform additional preprocessing to mimic the inputs to inception.
   # Scale image pixels. all pixels now reside in [0, 1), as in the
   # tensor representation following tf.image.decode_jpeg.
-  image = image * 256.
+  image = image / 256.
 
   # Scale the image to the domain [-1, 1) (referred to incorrectly
   # as (-1, 1) in the original documentation).
@@ -394,7 +394,7 @@ def main(_):
                                      FLAGS.concurrency, 
                                      FLAGS.image_list_file)
     for filename, indices, scores in inference_results:
-      print '%s Inference:'
+      print '%s Inference:' % filename
       for index, score in zip(indices, scores):
         print '\t%f : %s' % (score, texts[synsets[index - 1]])
 
