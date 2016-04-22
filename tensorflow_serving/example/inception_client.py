@@ -131,7 +131,30 @@ def _resize_to(img, w=None, h=None):
 
 def _read_image(imagefn):
   '''
+  This function reads in an image as a raw file and then converts
+  it to a PIL image. It's annoying, but it avoids the IOErrors that
+  PIL spits out when running in the client (even though it works fine
+  if used on its own).
+  
+  Args:
+    imagefn: A fully-qualified path to an image as a string.
+
+  Returns:
+    The PIL image requested.
   '''
+  with open(imagefn, 'r') as f:
+    try:
+      image_raw = StringIO(f.read())
+    except Exception, e:
+      print 'Could not read raw image (%s): %s' % (imagenf, e.message)
+      return None
+  try:
+    pil_image = Image.open(image_raw)
+    return pil_image
+  except Exception, e:
+    warn('Problem opening %s with PIL, error: %s' % (imagefn, e.message))
+    return None
+
 
 def _resize_to_min(img, w=None, h=None):
   '''
@@ -231,15 +254,9 @@ def prep_inception_from_file(image_file):
   the correct size.
   '''
   # Load the image.
-  try:
-    image = Image.open(image_file)
-  except IOError, e:
-    warn('Could not open %s with PIL. It will be skipped!' % e.filename)
+  image = _read_image(image_file)
+  if image is None:
     return None
-  try:
-    image.load()
-  except Exception as e:
-    warn('Could not load %s with PIL: %s' % (image_file, e.message))
 
   # In the original implementation of Inception export, the images are
   # centrally cropped by 87.5 percent before undergoing adjustments to
@@ -317,6 +334,7 @@ def do_inference(hostport, concurrency, listfile):
       cv.notify()
 
   for imagefn in imagefns:
+
     image_array = prep_inception_from_file(imagefn)
     request = inception_inference_pb2.InceptionRequest()
     if image_array is None:
@@ -332,6 +350,7 @@ def do_inference(hostport, concurrency, listfile):
     result_future = stub.Classify.future(request, 10.0)  # 10 second timeout
     result_future.add_done_callback(
         lambda result_future, filename=imagefn: done(result_future, filename))  # pylint: disable=cell-var-from-loop
+    print 'Submitted job: %s' % (imagefn)
   with cv:
     while result_status['done'] != num_images:
       cv.wait()
