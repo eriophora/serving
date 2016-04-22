@@ -150,10 +150,13 @@ def _read_image(imagefn):
       return None
   try:
     pil_image = Image.open(image_raw)
-    return pil_image
   except Exception, e:
-    warn('Problem opening %s with PIL, error: %s' % (imagefn, e.message))
+    warn('Problem opening %s StringIO with PIL, error: %s' % (imagefn, e.message))
     return None
+  try:
+    pil_image.load()
+  except Exception, e:
+    warn('Problem loading %s StringIO with PIL, error: %s' % (imagefn, e.message))
 
 
 def _resize_to_min(img, w=None, h=None):
