@@ -50,13 +50,12 @@ def export():
     # Note there is no preprocessing; this is all done client-side now.
     # The images will be read in an N x (image_size ** 2 * n_channels)
     flat_image_size = 3 * FLAGS.image_size ** 2
-    input_data = tf.placeholder(tf.float64, shape=(None, flat_image_size))
-    images = tf.to_float(input_data)
+    input_data = tf.placeholder(tf.float32, shape=(None, flat_image_size))
     # reshape the images appropriately
-    images = tf.reshape(images, (-1,
-                                 FLAGS.image_size,
-                                 FLAGS.image_size,
-                                 3))
+    images = tf.reshape(input_data, (-1,
+                                     FLAGS.image_size,
+                                     FLAGS.image_size,
+                                     3))
     print('Inputs have shape',images.get_shape())
     # Run inference.
     logits, _ = inception_model.inference(images, NUM_CLASSES + 1)
