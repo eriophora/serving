@@ -283,7 +283,7 @@ def do_inference(hostport, concurrency, listfile):
   # this will store the ouput Inception. We require it to map filenames
   # to their labels in the case of batching.
   inference_results = []
-  result = {'active': 0, 'error': 0, 'done': 0}d
+  result = {'active': 0, 'error': 0, 'done': 0}
   def done(result_future, filename):
     '''
     Callback for result_future, modifies inference_results to hold the 
