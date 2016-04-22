@@ -277,6 +277,7 @@ def do_inference(hostport, concurrency, listfile):
   imagefns = []
   with open(listfile, 'r') as f:
     imagefns = f.read().splitlines()
+  num_images = len(imagefns)
   host, port = hostport.split(':')
   channel = implementations.insecure_channel(host, int(port))
   stub = inception_inference_pb2.beta_create_InceptionService_stub(channel)
@@ -316,7 +317,7 @@ def do_inference(hostport, concurrency, listfile):
     result_future.add_done_callback(
         lambda result_future, filename=imagefn: done(result_future))  # pylint: disable=cell-var-from-loop
   with cv:
-    while result['done'] != num_tests:
+    while result['done'] != num_images:
       cv.wait()
   return inference_results
 
