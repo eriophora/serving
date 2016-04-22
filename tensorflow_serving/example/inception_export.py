@@ -87,7 +87,9 @@ def export():
       # Export inference model.
       model_exporter = exporter.Exporter(saver)
       signature = exporter.classification_signature(
-          input_tensor=jpegs, classes_tensor=indices, scores_tensor=values)
+          input_tensor=reshaped_images, 
+          classes_tensor=indices, 
+          scores_tensor=values)
       model_exporter.init(default_graph_signature=signature)
       model_exporter.export(FLAGS.export_dir, tf.constant(global_step), sess)
       print('Successfully exported model to %s' % FLAGS.export_dir)
