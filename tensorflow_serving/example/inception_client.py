@@ -334,11 +334,13 @@ def do_inference(hostport, concurrency, listfile):
       cv.notify()
 
   for imagefn in imagefns:
-
     image_array = prep_inception_from_file(imagefn)
-    request = inception_inference_pb2.InceptionRequest()
     if image_array is None:
+      print 'Could not read image %s' % imagefn
       continue
+    else:
+      print 'Read image %s with size %s' % (imagefn, str(image_array.shape))
+    request = inception_inference_pb2.InceptionRequest()
     # this is not as efficient as i feel like it could be,
     # since you have to flatten the array then turn it into
     # a list before you extend the request image_data field.
@@ -359,8 +361,6 @@ def do_inference(hostport, concurrency, listfile):
 
 def main(_):
   host, port = FLAGS.server.split(':')
-  channel = implementations.insecure_channel(host, int(port))
-  stub = inception_inference_pb2.beta_create_InceptionService_stub(channel)
   # Create label->synset mapping
   synsets = []
   with open(SYNSET_FILE) as f:
@@ -374,6 +374,8 @@ def main(_):
       texts[parts[0]] = parts[1]
   if FLAGS.image:
     # Load and preprocess the image.
+    channel = implementations.insecure_channel(host, int(port))
+    stub = inception_inference_pb2.beta_create_InceptionService_stub(channel)
     image = prep_inception_from_file(FLAGS.image)
     if image is None:
       return
