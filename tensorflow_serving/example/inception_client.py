@@ -42,7 +42,6 @@ from tensorflow_serving.example import inception_inference_pb2
 
 tf.app.flags.DEFINE_integer('concurrency', 1,
                             'maximum number of concurrent inference requests')
-# TODO: Add support for concurrency requests.
 tf.app.flags.DEFINE_string('server', 'localhost:9000',
                            'inception_inference service host:port')
 tf.app.flags.DEFINE_string('image', '', 'path to image in JPEG format')
@@ -232,7 +231,7 @@ def prep_inception_from_file(image_file):
   try:
     image.load()
   except Exception as e:
-    warn('Could not load images with PIL:', e.message)
+    warn('Could not load images with PIL: %s' % e.message)
 
   # In the original implementation of Inception export, the images are
   # centrally cropped by 87.5 percent before undergoing adjustments to
@@ -247,17 +246,16 @@ def prep_inception_from_file(image_file):
   image = _prep_image(image)
 
   # Convert to a numpy array
-  image = numpy.array(image).astype(numpy.float32)
+  image = numpy.array(image)
 
   # Perform additional preprocessing to mimic the inputs to inception.
   # Scale image pixels. all pixels now reside in [0, 1), as in the
   # tensor representation following tf.image.decode_jpeg.
-  image /= 256.
+  image = image * 256.
 
   # Scale the image to the domain [-1, 1) (referred to incorrectly
   # as (-1, 1) in the original documentation).
-  image -= 0.5
-  image *= 2.0
+  image -= (image - 0.5) * 2.0
   return image
 
 
@@ -280,7 +278,7 @@ def do_inference(hostport, concurrency, listfile):
   imagefns = []
   with open(listfile, 'r') as f:
     imagefns = f.read().splitlines()
-  print 'Read %i images:'
+  print 'Read %i images:' % len(imgfns)
   print '\t%s\n...' % imagefns[0]
   num_images = len(imagefns)
   host, port = hostport.split(':')
@@ -317,14 +315,14 @@ def do_inference(hostport, concurrency, listfile):
     # this is not as efficient as i feel like it could be,
     # since you have to flatten the array then turn it into
     # a list before you extend the request image_data field.
-    request.image_data.extend(list(image_array.flatten()))
+    request.image_data.extend(image_array.flatten().tolist())
     with cv:
       while result['active'] == concurrency:
         cv.wait()
       result['active'] += 1
     result_future = stub.Classify.future(request, 10.0)  # 10 second timeout
     result_future.add_done_callback(
-        lambda result_future, filename=imagefn: done(result_future))  # pylint: disable=cell-var-from-loop
+        lambda result_future, filename=imagefn: done(result_future, filename))  # pylint: disable=cell-var-from-loop
   with cv:
     while result['done'] != num_images:
       cv.wait()
