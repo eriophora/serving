@@ -301,7 +301,7 @@ def do_inference(hostport, concurrency, listfile):
       inference_results.append(inf_res)
       cv.notify()
 
-  for imagefn in range(imagefns):
+  for imagefn in imagefns:
     image_array = prep_inception_from_file(imagefn)
     if image_array is None:
       continue
