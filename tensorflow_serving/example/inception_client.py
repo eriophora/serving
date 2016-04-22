@@ -314,7 +314,10 @@ def do_inference(hostport, concurrency, listfile):
     request = inception_inference_pb2.InceptionRequest()
     if image_array is None:
       continue
-    request.image_data = image_array.tobytes()
+    # this is not as efficient as i feel like it could be,
+    # since you have to flatten the array then turn it into
+    # a list before you extend the request image_data field.
+    request.image_data.extend(list(image_array.flatten()))
     with cv:
       while result['active'] == concurrency:
         cv.wait()
