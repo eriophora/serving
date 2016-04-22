@@ -277,7 +277,7 @@ def prep_inception_from_file(image_file):
 
   # Scale the image to the domain [-1, 1) (referred to incorrectly
   # as (-1, 1) in the original documentation).
-  image -= (image - 0.5) * 2.0
+  image = (image - 0.5) * 2.0
   return image
 
 
