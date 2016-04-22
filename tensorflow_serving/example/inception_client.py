@@ -39,6 +39,10 @@ from PIL import Image
 
 from tensorflow_serving.example import inception_inference_pb2
 
+# There appear to be a number of problems with reading the image in
+# with PIL, so we're going to try reading it in with StringIO ahead
+# of time and instantiating it that way.
+from cStringIO import StringIO
 
 tf.app.flags.DEFINE_integer('concurrency', 1,
                             'maximum number of concurrent inference requests')
@@ -124,6 +128,10 @@ def _resize_to(img, w=None, h=None):
     h = int(w / asp)
   return img.resize((w, h), Image.BILINEAR)
 
+
+def _read_image(imagefn):
+  '''
+  '''
 
 def _resize_to_min(img, w=None, h=None):
   '''
@@ -231,7 +239,7 @@ def prep_inception_from_file(image_file):
   try:
     image.load()
   except Exception as e:
-    warn('Could not load images with PIL: %s' % e.message)
+    warn('Could not load %s with PIL: %s' % (image_file, e.message))
 
   # In the original implementation of Inception export, the images are
   # centrally cropped by 87.5 percent before undergoing adjustments to
@@ -278,7 +286,7 @@ def do_inference(hostport, concurrency, listfile):
   imagefns = []
   with open(listfile, 'r') as f:
     imagefns = f.read().splitlines()
-  print 'Read %i images:' % len(imgfns)
+  print 'Read %i images:' % len(imagefns)
   print '\t%s\n...' % imagefns[0]
   num_images = len(imagefns)
   host, port = hostport.split(':')
@@ -288,7 +296,7 @@ def do_inference(hostport, concurrency, listfile):
   # this will store the ouput Inception. We require it to map filenames
   # to their labels in the case of batching.
   inference_results = []
-  result = {'active': 0, 'error': 0, 'done': 0}
+  result_status = {'active': 0, 'error': 0, 'done': 0}
   def done(result_future, filename):
     '''
     Callback for result_future, modifies inference_results to hold the 
@@ -297,10 +305,11 @@ def do_inference(hostport, concurrency, listfile):
     with cv:
       exception = result_future.exception()
       if exception:
-        result['error'] += 1
+        result_status['error'] += 1
         print exception
-      result['done'] += 1
-      result['active'] -= 1
+      result_status['done'] += 1
+      result_status['active'] -= 1
+      result = result_future.result()
       indices = [result.classes[i] for i in range(NUM_CLASSES)]
       scores = [result.scores[i] for i in range(NUM_CLASSES)]
       inf_res = [filename, indices, scores]
@@ -317,14 +326,14 @@ def do_inference(hostport, concurrency, listfile):
     # a list before you extend the request image_data field.
     request.image_data.extend(image_array.flatten().tolist())
     with cv:
-      while result['active'] == concurrency:
+      while result_status['active'] == concurrency:
         cv.wait()
-      result['active'] += 1
+      result_status['active'] += 1
     result_future = stub.Classify.future(request, 10.0)  # 10 second timeout
     result_future.add_done_callback(
         lambda result_future, filename=imagefn: done(result_future, filename))  # pylint: disable=cell-var-from-loop
   with cv:
-    while result['done'] != num_images:
+    while result_status['done'] != num_images:
       cv.wait()
   return inference_results
 

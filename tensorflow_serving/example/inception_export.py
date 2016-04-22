@@ -57,7 +57,7 @@ def export():
                                           FLAGS.image_size,
                                           FLAGS.image_size,
                                           3))
-
+    print('Inputs have shape',reshaped_images.get_shape())
     # Run inference.
     logits, _ = inception_model.inference(reshaped_images, NUM_CLASSES + 1)
 
