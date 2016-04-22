@@ -316,18 +316,20 @@ def do_inference(hostport, concurrency, listfile):
     Callback for result_future, modifies inference_results to hold the 
     output of Inception.
     '''
+    print 'Result future recieved from %s' % filename
     with cv:
       exception = result_future.exception()
       if exception:
         result_status['error'] += 1
         print exception
+      else:
+        result = result_future.result()
+        indices = [result.classes[i] for i in range(NUM_CLASSES)]
+        scores = [result.scores[i] for i in range(NUM_CLASSES)]
+        inf_res = [filename, indices, scores]
+        inference_results.append(inf_res)
       result_status['done'] += 1
       result_status['active'] -= 1
-      result = result_future.result()
-      indices = [result.classes[i] for i in range(NUM_CLASSES)]
-      scores = [result.scores[i] for i in range(NUM_CLASSES)]
-      inf_res = [filename, indices, scores]
-      inference_results.append(inf_res)
       cv.notify()
 
   for imagefn in imagefns:
