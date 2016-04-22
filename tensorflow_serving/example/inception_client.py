@@ -226,6 +226,7 @@ def prep_inception_from_file(image_file):
   # Load the image.
   try:
     image = Image.open(image_file)
+    image.load()
   except IOError, e:
     warn('Could not open %s with PIL. It will be skipped!' % e.filename)
     return None
