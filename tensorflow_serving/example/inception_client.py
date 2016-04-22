@@ -226,10 +226,13 @@ def prep_inception_from_file(image_file):
   # Load the image.
   try:
     image = Image.open(image_file)
-    image.load()
   except IOError, e:
     warn('Could not open %s with PIL. It will be skipped!' % e.filename)
     return None
+  try:
+    image.load()
+  except Exception as e:
+    warn('Could not load images with PIL:', e.message)
 
   # In the original implementation of Inception export, the images are
   # centrally cropped by 87.5 percent before undergoing adjustments to
@@ -277,6 +280,8 @@ def do_inference(hostport, concurrency, listfile):
   imagefns = []
   with open(listfile, 'r') as f:
     imagefns = f.read().splitlines()
+  print 'Read %i images:'
+  print '\t%s\n...' % imagefns[0]
   num_images = len(imagefns)
   host, port = hostport.split(':')
   channel = implementations.insecure_channel(host, int(port))
