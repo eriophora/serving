@@ -311,6 +311,7 @@ def do_inference(hostport, concurrency, listfile):
 
   for imagefn in imagefns:
     image_array = prep_inception_from_file(imagefn)
+    request = inception_inference_pb2.InceptionRequest()
     if image_array is None:
       continue
     request.image_data = image_array.tobytes()
