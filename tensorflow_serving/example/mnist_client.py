@@ -85,7 +85,7 @@ def do_inference(hostport, work_dir, concurrency, num_tests):
       result['done'] += 1
       result['active'] -= 1
       cv.notify()
-  for _ in range(num_tests):
+  for test_num in range(num_tests):
     request = mnist_inference_pb2.MnistRequest()
     image, label = test_data_set.next_batch(1)
     for pixel in image[0]:
@@ -98,7 +98,7 @@ def do_inference(hostport, work_dir, concurrency, num_tests):
     result_future.add_done_callback(
         lambda result_future, l=label[0]: done(result_future, l))  # pylint: disable=cell-var-from-loop
     # TODO: remove testing
-    print 'Submitted job: %s' % (imagefn)
+    print 'Submitted job: %i' % (test_num)
   with cv:
     while result['done'] != num_tests:
       cv.wait()
