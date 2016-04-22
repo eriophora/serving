@@ -50,7 +50,7 @@ def export():
     # Note there is no preprocessing; this is all done client-side now.
     # The images will be read in an N x (image_size ** 2 * n_channels)
     flat_image_size = 3 * FLAGS.image_size ** 2
-    images = tf.placeholder(tf.float, shape=(None, flat_image_size))
+    images = tf.placeholder(tf.float32, shape=(None, flat_image_size))
 
     # reshape the images appropriately
     reshaped_images = tf.reshape(images, (-1,
