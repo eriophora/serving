@@ -140,15 +140,15 @@ def _read_image(imagefn):
     The PIL image requested.
   '''
   try:
-    pil_image = Image.open(imagfn)
+    pil_image = Image.open(imagefn)
   except Exception, e:
-    warn('Problem opening %s StringIO with PIL, error: %s' % (imagefn, e.message))
+    warn('Problem opening %s with PIL, error: %s' % (imagefn, e.message))
     return None
   try:
     # ensure that the image file is closed.
     pil_image.load()
   except Exception, e:
-    warn('Problem loading %s StringIO with PIL, error: %s' % (imagefn, e.message))
+    warn('Problem loading %s with PIL, error: %s' % (imagefn, e.message))
     return None
   return pil_image
 
