@@ -183,9 +183,9 @@ def _center_crop_to(img, w, h):
   if ow < w or oh < h:
     return img
   upper = (h - oh) / 2
-  lower = cy1 + h
+  lower = upper + h
   left = (w - ow) / 2
-  right = cx1 + w
+  right = left + w
   return img.crop((left, upper, right, lower))
 
 
