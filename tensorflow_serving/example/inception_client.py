@@ -225,7 +225,7 @@ def prep_inception_from_file(image_file):
   '''
   # Load the image.
   try:
-    image = Image.open(FLAGS.image)
+    image = Image.open(image_file)
   except IOError, e:
     warn('Could not open %s with PIL. It will be skipped!' % e.filename)
     return None
@@ -283,6 +283,7 @@ def do_inference(hostport, concurrency, listfile):
   # this will store the ouput Inception. We require it to map filenames
   # to their labels in the case of batching.
   inference_results = []
+  result = {'active': 0, 'error': 0, 'done': 0}d
   def done(result_future, filename):
     '''
     Callback for result_future, modifies inference_results to hold the 
