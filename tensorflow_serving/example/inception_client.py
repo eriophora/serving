@@ -29,13 +29,14 @@ import os
 import sys
 import threading
 
-# This is a placeholder for a Google-internal import.
+# PIL must be imported before tensorflow, annoyingly.
+from PIL import Image
 
+# This is a placeholder for a Google-internal import.
 from grpc.beta import implementations
 import numpy
 import tensorflow as tf
 from tensorflow.python.platform.logging import warn
-from PIL import Image
 
 from tensorflow_serving.example import inception_inference_pb2
 
