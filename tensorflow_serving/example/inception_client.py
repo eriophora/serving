@@ -39,7 +39,7 @@ from grpc.beta import implementations
 import numpy
 import tensorflow as tf
 from tensorflow.python.platform.logging import warn
-from tensorflow.python.platform.logging import info
+import logging
 
 from tensorflow_serving.example import inception_inference_pb2
 
@@ -59,6 +59,17 @@ tf.app.flags.DEFINE_string('prep_method', 'resize',
                   partial image, no blank space)
                 - padresize: Pads the image to the appropriate aspect ratio
                 then resizes (no distortion, whole image, blank space)''')
+
+
+# setup basic timestamps for debugging
+_log = logging.getLogger("inc_client")
+_log.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s: %(message)s')
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+_log.addHandler(ch)
+
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -80,7 +91,7 @@ def _prep_image(img, w=FLAGS.image_size, h=FLAGS.image_size):
   to central crop by 87.5%, and then simply resize to the appropriate
   dimensions. Here, there are additional options for users who have retrained
   Inception using alternative preprocessing methods. The source image cropping
-  of 87.5% is presumed completed; this is intended to be a more general prep 
+  of 87.5% is presumed completed; this is intended to be a more general prep
   function.
 
   Args:
@@ -133,7 +144,7 @@ def _read_image(imagefn):
   This function reads in an image as a raw file and then converts
   it to a PIL image. Note that, critically, PIL must be imported before
   tensorflow for black magic reasons.
-  
+
   Args:
     imagefn: A fully-qualified path to an image as a string.
 
@@ -247,7 +258,7 @@ def _pad_to_asp(img, asp):
 def prep_inception_from_file(image_file):
   '''
   Preprocesses an image from a fully-qualified file, in same
-  manager as the batchless inception server (including the 
+  manager as the batchless inception server (including the
   87.5% source crop) and wraps _prep_image to make the image
   the correct size.
   '''
@@ -301,8 +312,7 @@ def do_inference(hostport, concurrency, listfile):
   imagefns = []
   with open(listfile, 'r') as f:
     imagefns = f.read().splitlines()
-  print 'Read %i images:' % len(imagefns)
-  print '\t%s\n\t...' % imagefns[0]
+  _log.debug('Read %i images (%s, ...)', len(imagefns, imagefns[0]))
   num_images = len(imagefns)
   host, port = hostport.split(':')
   channel = implementations.insecure_channel(host, int(port))
@@ -314,10 +324,10 @@ def do_inference(hostport, concurrency, listfile):
   result_status = {'active': 0, 'error': 0, 'done': 0}
   def done(result_future, filename):
     '''
-    Callback for result_future, modifies inference_results to hold the 
+    Callback for result_future, modifies inference_results to hold the
     output of Inception.
     '''
-    print 'Result future recieved from %s' % filename
+    _log.debug('Result future recieved for %s', filename)
     with cv:
       exception = result_future.exception()
       if exception:
@@ -336,11 +346,11 @@ def do_inference(hostport, concurrency, listfile):
   for imagefn in imagefns:
     image_array = prep_inception_from_file(imagefn)
     if image_array is None:
-      print 'Could not read image %s' % imagefn
+      _log.debug('Could not read image %s', imagefn)
       num_images -= 1
       continue
     else:
-      print 'Read image %s with size %s' % (imagefn, str(image_array.shape))
+      _log.debug('Read image %s with size %s', imagefn, str(image_array.shape))
     request = inception_inference_pb2.InceptionRequest()
     # this is not as efficient as i feel like it could be,
     # since you have to flatten the array then turn it into
@@ -353,7 +363,7 @@ def do_inference(hostport, concurrency, listfile):
     result_future = stub.Classify.future(request, 2500.0)  # 10 second timeout
     result_future.add_done_callback(
         lambda result_future, filename=imagefn: done(result_future, filename))  # pylint: disable=cell-var-from-loop
-    print 'Submitted job: %s' % (imagefn)
+    _log.debug('Submitted job for %s', imagefn)
   with cv:
     while result_status['done'] != num_images:
       cv.wait()
@@ -380,7 +390,7 @@ def main(_):
     image = prep_inception_from_file(FLAGS.image)
     if image is None:
       return
-    # The image is now a numpy nd array with the appropraite size for 
+    # The image is now a numpy nd array with the appropraite size for
     # Inception, with each element constrained to the domain [-1, 1).
 
     # Create the request. See inception_inference.proto for gRPC request/
@@ -393,8 +403,8 @@ def main(_):
       score = result.scores[i]
       print '%f : %s' % (score, texts[synsets[index - 1]])
   elif FLAGS.image_list_file:
-    inference_results = do_inference(FLAGS.server, 
-                                     FLAGS.concurrency, 
+    inference_results = do_inference(FLAGS.server,
+                                     FLAGS.concurrency,
                                      FLAGS.image_list_file)
     for filename, indices, scores in inference_results:
       print '%s Inference:' % filename

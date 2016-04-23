@@ -56,10 +56,14 @@ def export():
                                      FLAGS.image_size,
                                      FLAGS.image_size,
                                      3))
-    print('Inputs have shape',images.get_shape())
+    # add a print operation for debugging
+    images = tf.Print(images, [images],
+                      message="Starting inference on tensor of size:")
     # Run inference.
     logits, _ = inception_model.inference(images, NUM_CLASSES + 1)
 
+    logits = tf.Print(logits, [logits],
+                      message="Logits received of size:")
     # Transform output to topK result.
     values, indices = tf.nn.top_k(logits, NUM_TOP_CLASSES)
 
@@ -86,8 +90,8 @@ def export():
       # Export inference model.
       model_exporter = exporter.Exporter(saver)
       signature = exporter.classification_signature(
-          input_tensor=input_data, 
-          classes_tensor=indices, 
+          input_tensor=input_data,
+          classes_tensor=indices,
           scores_tensor=values)
       model_exporter.init(default_graph_signature=signature)
       model_exporter.export(FLAGS.export_dir, tf.constant(global_step), sess)

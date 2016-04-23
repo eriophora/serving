@@ -20,6 +20,9 @@ limitations under the License.
 // probabilities.
 
 #include <stddef.h>
+#include <iostream>   // for custom log messages
+#include <time.h>     // for custom log messages
+#include <stdio.h>    // for custom log messages
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -82,6 +85,21 @@ const int kNumChannels = 3;
 const int kImageDataSize = kImageSize * kImageSize * kNumChannels;
 
 class InceptionServiceImpl;
+
+// For custom log messages that print timestamps, to investigate timing
+char* timestamp()
+{
+    time_t ltime; /* calendar time */
+    ltime=time(NULL); /* get current cal time */
+    char *tstmp = asctime( localtime(&ltime) );
+    tstmp[strlen(tstmp) - 1] = 0;
+    return tstmp;
+}
+
+void logmessage(const char *message)
+{
+    printf ("LOG ( %s ): %s\n", timestamp(), message);
+}
 
 // Class encompassing the state and logic needed to serve a request.
 class CallData {
@@ -235,6 +253,7 @@ Status ToGRPCStatus(const tensorflow::Status& status) {
 
 void InceptionServiceImpl::Classify(CallData* calldata) {
   // Create and submit a task to the batch scheduler.
+  logmessage("Task submitted to batch scheduler.")
   std::unique_ptr<Task> task(new Task(calldata));
   tensorflow::Status status = batch_scheduler_->Schedule(&task);
 
@@ -290,8 +309,8 @@ void InceptionServiceImpl::DoClassifyInBatch(
   // Transform protobuf input to inference input tensor.
   tensorflow::Tensor input(tensorflow::DT_FLOAT, {batch_size, kImageDataSize});
   auto dst = input.flat_outer_dims<float>().data();
-  // Assemble the batch into a tensor, copying it from the batch data to 
-  // the input tensor at location dst repeatedly for each item in the batch 
+  // Assemble the batch into a tensor, copying it from the batch data to
+  // the input tensor at location dst repeatedly for each item in the batch
   for (int i = 0; i < batch_size; ++i) {
     std::copy_n(
         batch->mutable_task(i)->calldata->request().image_data().begin(),
@@ -302,10 +321,12 @@ void InceptionServiceImpl::DoClassifyInBatch(
   // Run classification.
   tensorflow::Tensor batched_classes;
   tensorflow::Tensor batched_scores;
+  logmessage("Submitting batch inference request to classifier.")
   const tensorflow::Status run_status =
       RunClassification(signature, input, bundle->session.get(),
                         &batched_classes, &batched_scores);
   if (!run_status.ok()) {
+    logmessage("Batch inference ran correctly without error.")
     complete_with_error(StatusCode::INTERNAL, run_status.error_message());
     return;
   }
