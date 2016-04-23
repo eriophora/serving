@@ -349,7 +349,7 @@ def do_inference(hostport, concurrency, listfile):
       while result_status['active'] == concurrency:
         cv.wait()
       result_status['active'] += 1
-    result_future = stub.Classify.future(request, 25.0)  # 10 second timeout
+    result_future = stub.Classify.future(request, 2500.0)  # 10 second timeout
     result_future.add_done_callback(
         lambda result_future, filename=imagefn: done(result_future, filename))  # pylint: disable=cell-var-from-loop
     print 'Submitted job: %s' % (imagefn)
