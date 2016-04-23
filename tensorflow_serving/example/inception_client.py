@@ -39,6 +39,7 @@ from grpc.beta import implementations
 import numpy
 import tensorflow as tf
 from tensorflow.python.platform.logging import warn
+from tensorflow.python.platform.logging import info
 
 from tensorflow_serving.example import inception_inference_pb2
 
@@ -301,7 +302,7 @@ def do_inference(hostport, concurrency, listfile):
   with open(listfile, 'r') as f:
     imagefns = f.read().splitlines()
   print 'Read %i images:' % len(imagefns)
-  print '\t%s\n...' % imagefns[0]
+  print '\t%s\n\t...' % imagefns[0]
   num_images = len(imagefns)
   host, port = hostport.split(':')
   channel = implementations.insecure_channel(host, int(port))
