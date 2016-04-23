@@ -326,7 +326,6 @@ void InceptionServiceImpl::DoClassifyInBatch(
       RunClassification(signature, input, bundle->session.get(),
                         &batched_classes, &batched_scores);
   if (!run_status.ok()) {
-    logmessage("Batch inference ran correctly without error.");
     complete_with_error(StatusCode::INTERNAL, run_status.error_message());
     return;
   }
@@ -342,6 +341,7 @@ void InceptionServiceImpl::DoClassifyInBatch(
     }
     calldata->Finish(Status::OK);
   }
+  logmessage("Batch inference ran correctly without error.");
 }
 
 void HandleRpcs(InceptionServiceImpl* service_impl,
