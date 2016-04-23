@@ -98,7 +98,8 @@ char* timestamp()
 
 void logmessage(const char *message)
 {
-    printf ("LOG ( %s ): %s\n", timestamp(), message);
+    //printf ("LOG ( %s ): %s\n", timestamp(), message);
+    LOG(INFO) << "LOG ( " << timestamp() << " ): " << message;
 }
 
 // Class encompassing the state and logic needed to serve a request.
