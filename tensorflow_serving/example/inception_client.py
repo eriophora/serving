@@ -312,7 +312,7 @@ def do_inference(hostport, concurrency, listfile):
   imagefns = []
   with open(listfile, 'r') as f:
     imagefns = f.read().splitlines()
-  _log.debug('Read %i images (%s, ...)', len(imagefns, imagefns[0]))
+  _log.debug('Read %i images (%s, ...)', len(imagefns), imagefns[0])
   num_images = len(imagefns)
   host, port = hostport.split(':')
   channel = implementations.insecure_channel(host, int(port))
