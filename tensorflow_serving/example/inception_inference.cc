@@ -253,7 +253,7 @@ Status ToGRPCStatus(const tensorflow::Status& status) {
 
 void InceptionServiceImpl::Classify(CallData* calldata) {
   // Create and submit a task to the batch scheduler.
-  logmessage("Task submitted to batch scheduler.")
+  logmessage("Task submitted to batch scheduler.");
   std::unique_ptr<Task> task(new Task(calldata));
   tensorflow::Status status = batch_scheduler_->Schedule(&task);
 
@@ -321,12 +321,12 @@ void InceptionServiceImpl::DoClassifyInBatch(
   // Run classification.
   tensorflow::Tensor batched_classes;
   tensorflow::Tensor batched_scores;
-  logmessage("Submitting batch inference request to classifier.")
+  logmessage("Submitting batch inference request to classifier.");
   const tensorflow::Status run_status =
       RunClassification(signature, input, bundle->session.get(),
                         &batched_classes, &batched_scores);
   if (!run_status.ok()) {
-    logmessage("Batch inference ran correctly without error.")
+    logmessage("Batch inference ran correctly without error.");
     complete_with_error(StatusCode::INTERNAL, run_status.error_message());
     return;
   }
