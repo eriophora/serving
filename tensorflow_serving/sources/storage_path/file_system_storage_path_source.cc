@@ -142,12 +142,12 @@ void FileSystemStoragePathSource::SetAspiredVersionsCallback(
 Status FileSystemStoragePathSource::PollFileSystemAndInvokeCallback() {
   std::vector<ServableData<StoragePath>> versions;
   TF_RETURN_IF_ERROR(PollFileSystem(config_, &versions));
-  for (const ServableData<StoragePath>& version : versions) {
-    if (version.status().ok()) {
-      LOG(DEBUG) << "Aspiring version for servable " << config_.servable_name()
-                << " from path: " << version.DataOrDie();
-    }
-  }
+  // for (const ServableData<StoragePath>& version : versions) {
+  //   if (version.status().ok()) {
+  //     LOG(INFO) << "Aspiring version for servable " << config_.servable_name()
+  //               << " from path: " << version.DataOrDie();
+  //   }
+  // }
   aspired_versions_callback_(config_.servable_name(), versions);
   return Status::OK();
 }
