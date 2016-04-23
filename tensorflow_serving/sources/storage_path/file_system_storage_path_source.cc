@@ -144,7 +144,7 @@ Status FileSystemStoragePathSource::PollFileSystemAndInvokeCallback() {
   TF_RETURN_IF_ERROR(PollFileSystem(config_, &versions));
   for (const ServableData<StoragePath>& version : versions) {
     if (version.status().ok()) {
-      LOG(INFO) << "Aspiring version for servable " << config_.servable_name()
+      LOG(DEBUG) << "Aspiring version for servable " << config_.servable_name()
                 << " from path: " << version.DataOrDie();
     }
   }
