@@ -394,7 +394,7 @@ def main(_):
     # Create the request. See inception_inference.proto for gRPC request/
     # response details. Instead of using an encoded jpeg, we send the
     # data as a row-major byte encoding using numpy's tobytes method.
-    request.image_data = image.tobytes()
+    request.image_data = image.extend(image_array.flatten().tolist())
     result = stub.Classify(request, 10.0)  # 10 secs timeout
     for i in range(NUM_CLASSES):
       index = result.classes[i]
