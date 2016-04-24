@@ -56,16 +56,9 @@ def export():
                                      FLAGS.image_size,
                                      FLAGS.image_size,
                                      3))
-    # add a print operation for debugging
-    images = tf.Print(images, [images],
-                      message="Starting inference on tensor.",
-                      summarize=0)
     # Run inference.
     logits, _ = inception_model.inference(images, NUM_CLASSES + 1)
 
-    logits = tf.Print(logits, [logits],
-                      message="Logits received.",
-                      summarize=0)
     # Transform output to topK result.
     values, indices = tf.nn.top_k(logits, NUM_TOP_CLASSES)
 

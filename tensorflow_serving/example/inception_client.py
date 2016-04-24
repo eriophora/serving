@@ -349,8 +349,6 @@ def do_inference(hostport, concurrency, listfile):
       _log.debug('Could not read image %s', imagefn)
       num_images -= 1
       continue
-    else:
-      _log.debug('Read image %s with size %s', imagefn, str(image_array.shape))
     request = inception_inference_pb2.InceptionRequest()
     # this is not as efficient as i feel like it could be,
     # since you have to flatten the array then turn it into
@@ -363,7 +361,6 @@ def do_inference(hostport, concurrency, listfile):
     result_future = stub.Classify.future(request, 2500.0)  # 10 second timeout
     result_future.add_done_callback(
         lambda result_future, filename=imagefn: done(result_future, filename))  # pylint: disable=cell-var-from-loop
-    _log.debug('Submitted job for %s', imagefn)
   with cv:
     while result_status['done'] != num_images:
       cv.wait()

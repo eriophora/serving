@@ -20,9 +20,6 @@ limitations under the License.
 // probabilities.
 
 #include <stddef.h>
-#include <iostream>   // for custom log messages
-#include <time.h>     // for custom log messages
-#include <stdio.h>    // for custom log messages
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -85,26 +82,6 @@ const int kNumChannels = 3;
 const int kImageDataSize = kImageSize * kImageSize * kNumChannels;
 
 class InceptionServiceImpl;
-
-// For custom log messages that print timestamps, to investigate timing
-char* timestamp()
-{
-    time_t ltime; /* calendar time */
-    ltime=time(NULL); /* get current cal time */
-    char *tstmp = asctime( localtime(&ltime) );
-    tstmp[strlen(tstmp) - 1] = 0;
-    return tstmp;
-}
-
-void logmessage(const char *message)
-{
-    LOG(INFO) << "LOG ( " << timestamp() << " ): " << message;
-}
-
-void logmessage(const char *message, int infoN)
-{
-    LOG(INFO) << "LOG ( " << timestamp() << " ): " << message << " [" << infoN << "]";
-}
 
 // Class encompassing the state and logic needed to serve a request.
 class CallData {
@@ -235,7 +212,6 @@ InceptionServiceImpl::InceptionServiceImpl(
   // the numbers are extremely performance critical and should be tuned based
   // specific graph structure and usage.
   tensorflow::serving::StreamingBatchScheduler<Task>::Options scheduler_options;
-  scheduler_options.thread_pool_name = "inception_service_batch_threads";
   scheduler_options.batch_timeout_micros = 1000 * 1000;  // 1 second
   scheduler_options.num_batch_threads = 4;
   scheduler_options.max_batch_size = 22;
@@ -257,7 +233,6 @@ Status ToGRPCStatus(const tensorflow::Status& status) {
 
 void InceptionServiceImpl::Classify(CallData* calldata) {
   // Create and submit a task to the batch scheduler.
-  logmessage("Task submitted to batch scheduler.");
   std::unique_ptr<Task> task(new Task(calldata));
   tensorflow::Status status = batch_scheduler_->Schedule(&task);
 
@@ -325,7 +300,6 @@ void InceptionServiceImpl::DoClassifyInBatch(
   // Run classification.
   tensorflow::Tensor batched_classes;
   tensorflow::Tensor batched_scores;
-  logmessage("Submitting batch inference request to classifier of size:", batch_size);
   const tensorflow::Status run_status =
       RunClassification(signature, input, bundle->session.get(),
                         &batched_classes, &batched_scores);
@@ -345,7 +319,6 @@ void InceptionServiceImpl::DoClassifyInBatch(
     }
     calldata->Finish(Status::OK);
   }
-  logmessage("Batch inference ran correctly without error. Size:", batch_size);
 }
 
 void HandleRpcs(InceptionServiceImpl* service_impl,
