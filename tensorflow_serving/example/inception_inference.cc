@@ -102,6 +102,11 @@ void logmessage(const char *message)
     LOG(INFO) << "LOG ( " << timestamp() << " ): " << message;
 }
 
+void logmessage(const char *message, int infoN)
+{
+    printf ("LOG ( %s ): %s [%i]\n", timestamp(), message, infoN);
+}
+
 // Class encompassing the state and logic needed to serve a request.
 class CallData {
  public:
@@ -321,7 +326,7 @@ void InceptionServiceImpl::DoClassifyInBatch(
   // Run classification.
   tensorflow::Tensor batched_classes;
   tensorflow::Tensor batched_scores;
-  logmessage("Submitting batch inference request to classifier.");
+  logmessage("Submitting batch inference request to classifier of size:", batch_size);
   const tensorflow::Status run_status =
       RunClassification(signature, input, bundle->session.get(),
                         &batched_classes, &batched_scores);
@@ -341,7 +346,7 @@ void InceptionServiceImpl::DoClassifyInBatch(
     }
     calldata->Finish(Status::OK);
   }
-  logmessage("Batch inference ran correctly without error.");
+  logmessage("Batch inference ran correctly without error. Size:", batch_size);
 }
 
 void HandleRpcs(InceptionServiceImpl* service_impl,
