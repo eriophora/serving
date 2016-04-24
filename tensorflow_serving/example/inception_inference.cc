@@ -98,13 +98,12 @@ char* timestamp()
 
 void logmessage(const char *message)
 {
-    //printf ("LOG ( %s ): %s\n", timestamp(), message);
     LOG(INFO) << "LOG ( " << timestamp() << " ): " << message;
 }
 
 void logmessage(const char *message, int infoN)
 {
-    printf ("LOG ( %s ): %s [%i]\n", timestamp(), message, infoN);
+    LOG(INFO) << "LOG ( " << timestamp() << " ): " << message << " [" << infoN << "]";
 }
 
 // Class encompassing the state and logic needed to serve a request.
@@ -237,8 +236,8 @@ InceptionServiceImpl::InceptionServiceImpl(
   // specific graph structure and usage.
   tensorflow::serving::StreamingBatchScheduler<Task>::Options scheduler_options;
   scheduler_options.thread_pool_name = "inception_service_batch_threads";
-  // scheduler_options.batch_timeout_micros = 10000 * 1000;  // 10 seconds
-  scheduler_options.num_batch_threads = 10;
+  cheduler_options.batch_timeout_micros = 1000 * 1000;  // 1 second
+  scheduler_options.num_batch_threads = 4;
   scheduler_options.max_batch_size = 22;
   tensorflow::serving::BatchSchedulerRetrier<Task>::Options retry_options;
   // Retain the default retry options.
