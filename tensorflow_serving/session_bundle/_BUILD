@@ -111,6 +111,28 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "session_bundle_test",
+    size = "small",
+    srcs = ["session_bundle_test.cc"],
+    data = [
+        "//tensorflow_serving/session_bundle/example:half_plus_two",
+    ],
+    # Link in all registered kernels.
+    linkstatic = 1,
+    deps = [
+        "@tf//google/protobuf:cc_wkt_protos",
+        "@tf//tensorflow/core:core_cpu",
+        "@tf//tensorflow/core:framework",
+        "@tf//tensorflow/core:lib",
+        "@tf//tensorflow/core:test",
+        "@tf//tensorflow/core:testlib",
+        ":session_bundle",
+        "//tensorflow_serving/core/test_util:test_main",
+        "//tensorflow_serving/test_util",
+    ],
+)
+
 cc_library(
     name = "signature",
     srcs = ["signature.cc"],
