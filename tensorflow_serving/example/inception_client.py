@@ -385,6 +385,7 @@ def main(_):
     channel = implementations.insecure_channel(host, int(port))
     stub = inception_inference_pb2.beta_create_InceptionService_stub(channel)
     image = prep_inception_from_file(FLAGS.image)
+    request = inception_inference_pb2.InceptionRequest()
     if image is None:
       return
     # The image is now a numpy nd array with the appropraite size for
